@@ -151,7 +151,7 @@ export default function UploadForm() {
                     }`}
                     role="button"
                     tabIndex={0}
-                    aria-label="Remove selected PDF"
+                    aria-label="Upload book cover image"
                     onClick={() => {
                       if (!field.value) {
                         field.onChange(new File([""], "cover.jpg"));
@@ -160,8 +160,9 @@ export default function UploadForm() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        e.stopPropagation();
-                        field.onChange(null);
+                        if (!field.value) {
+                          field.onChange(new File([""], "cover.jpg"));
+                        }
                       }
                     }}
                   >
@@ -173,9 +174,18 @@ export default function UploadForm() {
                           </span>
                           <div
                             className="upload-dropzone-remove"
+                            role="button"
+                            aria-label="Remove selected cover image"
                             onClick={(e) => {
                               e.stopPropagation();
                               field.onChange(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                field.onChange(null);
+                              }
                             }}
                           >
                             <X className="w-5 h-5" />
@@ -266,15 +276,15 @@ export default function UploadForm() {
                           <div
                             key={voice.name}
                             role="radio"
-                          tabIndex={0}
-                          aria-checked={field.value === voice.name}
+                            tabIndex={0}
+                            aria-checked={field.value === voice.name}
                             onClick={() => field.onChange(voice.name)}
-                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              field.onChange(voice.name);
-                            }
-                          }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                field.onChange(voice.name);
+                              }
+                            }}
                             className={`voice-selector-option flex-col items-start! p-4 ${
                               field.value === voice.name
                                 ? "voice-selector-option-selected"
@@ -300,7 +310,16 @@ export default function UploadForm() {
                         {voices.female.map((voice) => (
                           <div
                             key={voice.name}
+                            role="radio"
+                            tabIndex={0}
+                            aria-checked={field.value === voice.name}
                             onClick={() => field.onChange(voice.name)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                field.onChange(voice.name);
+                              }
+                            }}
                             className={`voice-selector-option flex-col !items-start p-4 ${
                               field.value === voice.name
                                 ? "voice-selector-option-selected"

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Serif, Mona_Sans } from "next/font/google";
+import { IBM_Plex_Serif } from "next/font/google";
+import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import Navbar from "@/components/Navbar";
@@ -12,9 +13,25 @@ const ibmPlexSerif = IBM_Plex_Serif({
   display: "swap",
 });
 
-const monaSans = Mona_Sans({
+const monaSans = localFont({
   variable: "--font-mona-sans",
-  subsets: ["latin"],
+  src: [
+    {
+      path: "./fonts/MonaSans-Latin.woff2",
+      weight: "200 900",
+      style: "normal",
+    },
+    {
+      path: "./fonts/MonaSans-LatinExt.woff2",
+      weight: "200 900",
+      style: "normal",
+    },
+    {
+      path: "./fonts/MonaSans-Vietnamese.woff2",
+      weight: "200 900",
+      style: "normal",
+    },
+  ],
   display: "swap",
 });
 

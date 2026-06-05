@@ -17,5 +17,8 @@ export const UploadSchema = z.object({
     .refine((file) => file.type.startsWith("image/"), {
       message: "File must be an image",
     })
+    .refine((file) => file.size <= 10 * 1024 * 1024, {
+      message: "Image must be less than 10MB",
+    })
     .optional(),
 });
