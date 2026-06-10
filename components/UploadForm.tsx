@@ -8,7 +8,11 @@ import { Upload, Image as ImageIcon, X, Loader2 } from "lucide-react";
 import { BookUploadFormValues } from "@/types";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
-import { checkBookExists, createBook, saveBookSegments } from "@/lib/actions/book.actions";
+import {
+  checkBookExists,
+  createBook,
+  saveBookSegments,
+} from "@/lib/actions/book.actions";
 import { useRouter } from "next/navigation";
 import { parsePDFFile } from "@/lib/utils";
 import { upload } from "@vercel/blob/client";
@@ -46,6 +50,9 @@ export default function UploadForm() {
     if (!userId) {
       return toast.error("Please login to upload books.");
     }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     // PostHog → Track Book Uploads ...
 
@@ -127,16 +134,19 @@ export default function UploadForm() {
         return;
       }
 
-      const segments = await saveBookSegments(book.data.id, userId, parsedPDF.content);
+      const segments = await saveBookSegments(
+        book.data.id,
+        userId,
+        parsedPDF.content
+      );
 
-      if(!segments.success) {
+      if (!segments.success) {
         toast.error("Failed to save book segments. Please try again later.");
         throw new Error("Failed to save book segments");
       }
 
       form.reset();
       router.push("/");
-
     } catch (error) {
       console.error(error);
       toast.error("Failed to upload book. Please try again later.");
@@ -461,7 +471,7 @@ export default function UploadForm() {
             />
           </fieldset>
 
-          <button type="submit" className="form-btn">
+          <button type="submit" className="form-btn" disabled={isSubmitting}>
             Begin Synthesis
           </button>
         </form>

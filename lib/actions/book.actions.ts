@@ -26,9 +26,7 @@ export const checkBookExists = async (title: string) => {
         }
     } catch (error) {
         console.error("Error checking if book exists:", error);
-        return {
-            exists: false, error: error
-        }  
+        throw error;
     }
 }
 
@@ -80,7 +78,7 @@ export const saveBookSegments = async (bookId: string, clerkId: string, segments
 
         await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length })
 
-        console.error("Book segments saved successfully.");
+          console.log("Book segments saved successfully.");
         
         return {
             success: true,
