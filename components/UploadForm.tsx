@@ -1,11 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useForm, FormProvider, Controller } from "react-hook-form";
+import React, { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Upload, ImageIcon } from "lucide-react";
 import { UploadSchema } from "@/lib/zod";
-import { Upload, Image as ImageIcon, X, Loader2 } from "lucide-react";
 import { BookUploadFormValues } from "@/types";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ACCEPTED_PDF_TYPES, ACCEPTED_IMAGE_TYPES } from "@/constants";
+import VoiceSelector from "./VoiceSelector";
+import LoadingOverlay from "./LoadingOverlay";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import {
@@ -14,26 +20,19 @@ import {
   saveBookSegments,
 } from "@/lib/actions/book.actions";
 import { useRouter } from "next/navigation";
-import { generateSlug, parsePDFFile } from "@/lib/utils";
+import { parsePDFFile } from "@/lib/utils";
 import { upload } from "@vercel/blob/client";
+import FileUploader from "./FileUploader";
 
-const voices = {
-  male: [
-    { name: "Dave", description: "Deep & authoritative" },
-    { name: "Daniel", description: "Warm & conversational" },
-    { name: "Chris", description: "Professional & clear" },
-  ],
-  female: [
-    { name: "Rachel", description: "Bright & energetic" },
-    { name: "Sarah", description: "Calm & soothing" },
-  ],
-};
-
-export default function UploadForm() {
+const UploadForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const { userId } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const form = useForm<BookUploadFormValues>({
     resolver: zodResolver(UploadSchema),
@@ -48,13 +47,12 @@ export default function UploadForm() {
 
   const onSubmit = async (data: BookUploadFormValues) => {
     if (!userId) {
-      return toast.error("Please login to upload books.");
+      return toast.error("Please login to upload books");
     }
 
-    if (isSubmitting) return;
     setIsSubmitting(true);
 
-    // PostHog → Track Book Uploads ...
+    // PostHog -> Track Book Uploads...
 
     try {
       const existsCheck = await checkBookExists(data.title);
@@ -66,7 +64,7 @@ export default function UploadForm() {
         return;
       }
 
-      const fileTitle = generateSlug(data.title);
+      const fileTitle = data.title.replace(/\s+/g, "-").toLowerCase();
       const pdfFile = data.pdfFile;
 
       const parsedPDF = await parsePDFFile(pdfFile);
@@ -78,7 +76,7 @@ export default function UploadForm() {
         return;
       }
 
-      const uploadedPdfBlob = await upload(`${fileTitle}.pdf`, pdfFile, {
+      const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
         access: "public",
         handleUploadUrl: "/api/upload",
         contentType: "application/pdf",
@@ -122,25 +120,25 @@ export default function UploadForm() {
       });
 
       if (!book.success) {
-        toast.error("Failed to create book. Please try again later.");
-        throw new Error("Failed to create book");
+        toast.error((book.error as string) || "Failed to create book");
+        return;
       }
 
-      if (existsCheck.exists && existsCheck.book) {
+      if (book.alreadyExists) {
         toast.info("Book with same title already exists.");
         form.reset();
-        router.push(`/books/${existsCheck.book.slug}`);
+        router.push(`/books/${book.data.slug}`);
         return;
       }
 
       const segments = await saveBookSegments(
-        book.data._id.toString(),
+        book.data._id,
         userId,
         parsedPDF.content
       );
 
       if (!segments.success) {
-        toast.error("Failed to save book segments. Please try again later.");
+        toast.error("Failed to save book segments");
         throw new Error("Failed to save book segments");
       }
 
@@ -148,333 +146,120 @@ export default function UploadForm() {
       router.push("/");
     } catch (error) {
       console.error(error);
+
       toast.error("Failed to upload book. Please try again later.");
     } finally {
       setIsSubmitting(false);
     }
-
-    // Simulate submission
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    console.log(data);
-    setIsSubmitting(false);
   };
 
+  if (!isMounted) return null;
+
   return (
-    <div className="new-book-wrapper relative">
-      {isSubmitting && (
-        <div className="loading-wrapper">
-          <div className="loading-shadow-wrapper bg-white">
-            <div className="loading-shadow">
-              <Loader2 className="loading-animation w-12 h-12 text-[#663820]" />
-              <h2 className="loading-title">Synthesizing Book...</h2>
-              <div className="loading-progress">
-                <div className="loading-progress-item">
-                  <span className="loading-progress-status"></span>
-                  <span>Extracting text from PDF</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    <>
+      {isSubmitting && <LoadingOverlay />}
 
-      <FormProvider {...form}>
+      <div className="new-book-wrapper">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <fieldset>
-            {/* PDF Upload */}
-            <Controller
-              control={form.control}
-              name="pdfFile"
-              render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <label className="form-label">Upload Book PDF</label>
-                  <input
-                    ref={pdfInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        field.onChange(file);
-                      }
-                      e.target.value = "";
-                    }}
-                  />
-                  <div
-                    className={`upload-dropzone border-2 border-dashed border-[#d4c4a8] ${
-                      field.value
-                        ? "upload-dropzone-uploaded border-transparent"
-                        : ""
-                    }`}
-                    onClick={() => {
-                      pdfInputRef.current?.click();
-                    }}
-                  >
-                    {field.value ? (
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="upload-dropzone-text font-bold text-[#212a3b]">
-                            {(field.value as File).name || "Selected PDF"}
-                          </span>
-                          <div
-                            className="upload-dropzone-remove"
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Remove selected PDF"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              field.onChange(undefined);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                field.onChange(undefined);
-                              }
-                            }}
-                          >
-                            <X className="w-5 h-5" />
-                          </div>
-                        </div>
-                        <span className="upload-dropzone-hint">
-                          Click to change file
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <Upload className="upload-dropzone-icon" />
-                        <span className="upload-dropzone-text">
-                          Click to upload PDF
-                        </span>
-                        <span className="upload-dropzone-hint">
-                          PDF file (max 50MB)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {fieldState.error && (
-                    <p className="text-red-500 text-sm">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
+          {/* 1. PDF File Upload */}
+          <FileUploader
+            control={form.control}
+            name="pdfFile"
+            label="Book PDF File"
+            acceptTypes={ACCEPTED_PDF_TYPES}
+            icon={Upload}
+            placeholder="Click to upload PDF"
+            hint="PDF file (max 50MB)"
+            disabled={isSubmitting}
+          />
 
-            {/* Cover Image Upload */}
-            <Controller
-              control={form.control}
-              name="coverImage"
-              render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <label className="form-label">Upload Book Cover Image</label>
-                  <div
-                    className={`upload-dropzone border-2 border-dashed border-[#d4c4a8] ${
-                      field.value
-                        ? "upload-dropzone-uploaded border-transparent"
-                        : ""
-                    }`}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Upload book cover image"
-                    onClick={() => {
-                      if (!field.value) {
-                        field.onChange(new File([""], "cover.jpg"));
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        if (!field.value) {
-                          field.onChange(new File([""], "cover.jpg"));
-                        }
-                      }
-                    }}
-                  >
-                    {field.value ? (
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="upload-dropzone-text font-bold text-[#212a3b]">
-                            {(field.value as File).name || "Selected Cover"}
-                          </span>
-                          <div
-                            className="upload-dropzone-remove"
-                            role="button"
-                            aria-label="Remove selected cover image"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              field.onChange(undefined);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                field.onChange(undefined);
-                              }
-                            }}
-                          >
-                            <X className="w-5 h-5" />
-                          </div>
-                        </div>
-                        <span className="upload-dropzone-hint">
-                          Click to change image
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <ImageIcon className="upload-dropzone-icon" />
-                        <span className="upload-dropzone-text">
-                          Click to upload cover image
-                        </span>
-                        <span className="upload-dropzone-hint">
-                          Leave empty to auto-generate from PDF
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {fieldState.error && (
-                    <p className="text-red-500 text-sm">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
+          {/* 2. Cover Image Upload */}
+          <FileUploader
+            control={form.control}
+            name="coverImage"
+            label="Cover Image (Optional)"
+            acceptTypes={ACCEPTED_IMAGE_TYPES}
+            icon={ImageIcon}
+            placeholder="Click to upload cover image"
+            hint="Leave empty to auto-generate from PDF"
+            disabled={isSubmitting}
+          />
 
-            {/* Title */}
-            <Controller
-              control={form.control}
-              name="title"
-              render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <label className="form-label">Title</label>
-                  <input
-                    {...field}
-                    className="form-input"
-                    placeholder="ex: Rich Dad Poor Dad"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-500 text-sm">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
+          {/* 3. Title Input */}
+          <Controller
+            control={form.control}
+            name="title"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={!!fieldState.error}>
+                <FieldLabel htmlFor="title" className="form-label">
+                  Title
+                </FieldLabel>
+                <Input
+                  id="title"
+                  className="form-input"
+                  placeholder="ex: Rich Dad Poor Dad"
+                  disabled={isSubmitting}
+                  {...field}
+                />
+                <FieldError
+                  errors={fieldState.error ? [fieldState.error] : []}
+                />
+              </Field>
+            )}
+          />
 
-            {/* Author */}
-            <Controller
-              control={form.control}
-              name="author"
-              render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <label className="form-label">Author Name</label>
-                  <input
-                    {...field}
-                    className="form-input"
-                    placeholder="ex: Robert Kiyosaki"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-500 text-sm">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
+          {/* 4. Author Input */}
+          <Controller
+            control={form.control}
+            name="author"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={!!fieldState.error}>
+                <FieldLabel htmlFor="author" className="form-label">
+                  Author Name
+                </FieldLabel>
+                <Input
+                  id="author"
+                  className="form-input"
+                  placeholder="ex: Robert Kiyosaki"
+                  disabled={isSubmitting}
+                  {...field}
+                />
+                <FieldError
+                  errors={fieldState.error ? [fieldState.error] : []}
+                />
+              </Field>
+            )}
+          />
 
-            {/* Voice Selector */}
-            <Controller
-              control={form.control}
-              name="persona"
-              render={({ field }) => (
-                <div className="space-y-4">
-                  <label className="form-label">Choose Assistant Voice</label>
+          {/* 5. Voice Selector */}
+          <Controller
+            control={form.control}
+            name="persona"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={!!fieldState.error}>
+                <FieldLabel className="form-label">
+                  Choose Assistant Voice
+                </FieldLabel>
+                <VoiceSelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isSubmitting}
+                />
+                <FieldError
+                  errors={fieldState.error ? [fieldState.error] : []}
+                />
+              </Field>
+            )}
+          />
 
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-[#3d485e] mb-2 uppercase tracking-wider">
-                        Male Voices
-                      </h4>
-                      <div className="voice-selector-options flex-wrap">
-                        {voices.male.map((voice) => (
-                          <div
-                            key={voice.name}
-                            role="radio"
-                            tabIndex={0}
-                            aria-checked={field.value === voice.name}
-                            onClick={() => field.onChange(voice.name)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                field.onChange(voice.name);
-                              }
-                            }}
-                            className={`voice-selector-option flex-col items-start! p-4 ${
-                              field.value === voice.name
-                                ? "voice-selector-option-selected"
-                                : "voice-selector-option-default"
-                            }`}
-                          >
-                            <span className="font-bold text-[#212a3b]">
-                              {voice.name}
-                            </span>
-                            <span className="text-sm text-[#3d485e]">
-                              {voice.description}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-[#3d485e] mb-2 uppercase tracking-wider">
-                        Female Voices
-                      </h4>
-                      <div className="voice-selector-options flex-wrap">
-                        {voices.female.map((voice) => (
-                          <div
-                            key={voice.name}
-                            role="radio"
-                            tabIndex={0}
-                            aria-checked={field.value === voice.name}
-                            onClick={() => field.onChange(voice.name)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                field.onChange(voice.name);
-                              }
-                            }}
-                            className={`voice-selector-option flex-col items-start! p-4 ${
-                              field.value === voice.name
-                                ? "voice-selector-option-selected"
-                                : "voice-selector-option-default"
-                            }`}
-                          >
-                            <span className="font-bold text-[#212a3b]">
-                              {voice.name}
-                            </span>
-                            <span className="text-sm text-[#3d485e]">
-                              {voice.description}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            />
-          </fieldset>
-
-          <button type="submit" className="form-btn" disabled={isSubmitting}>
+          {/* 6. Submit Button */}
+          <Button type="submit" className="form-btn" disabled={isSubmitting}>
             Begin Synthesis
-          </button>
+          </Button>
         </form>
-      </FormProvider>
-    </div>
+      </div>
+    </>
   );
-}
+};
+
+export default UploadForm;
