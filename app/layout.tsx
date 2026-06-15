@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Serif } from "next/font/google";
 import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
+ import { ui } from "@clerk/ui";
 
 import Navbar from "@/components/Navbar";
 import "./globals.css";
@@ -48,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider ui={ui}>
       <html
         lang="en"
         className={`${ibmPlexSerif.variable} ${monaSans.variable} relative h-full font-sans antialiased`}

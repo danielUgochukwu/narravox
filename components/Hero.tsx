@@ -4,7 +4,7 @@ import React from "react";
 
 const Hero = () => {
   return (
-    <section className="wrapper pt-28 mb-10">
+    <section className="wrapper mb-10">
       <div className="library-hero-card">
         <div className="library-hero-content">
         {/* Left Side */}

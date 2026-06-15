@@ -1,18 +1,27 @@
-import React from "react";
 import Hero from "@/components/Hero";
 import { sampleBooks } from "@/lib/constants/constants";
 import BookCard from "@/components/BookCard";
+import { getAllBooks } from "@/lib/actions/book.actions";
 
-const Page = () => {
+const Page = async () => {
+  const bookResults = await getAllBooks();
+  const books = bookResults.success ? bookResults.data ?? [] : [];
+
   return (
     <main className="wrapper container">
       <Hero />
 
-       <div className="library-books-grid">
-        {sampleBooks.map((book)=> (
-          <BookCard key={book._id} title={book.title} author={book.author} coverURL={book.coverURL} slug={book.slug} />
+      <div className="library-books-grid">
+        {books.map((book) => (
+          <BookCard
+            key={book._id}
+            title={book.title}
+            author={book.author}
+            coverURL={book.coverURL}
+            slug={book.slug}
+          />
         ))}
-       </div>
+      </div>
     </main>
   );
 };

@@ -6,6 +6,24 @@ import { generateSlug, serializeData } from "../utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 
+export const getAllBooks = async () => {
+  try {
+    await connectToDatabase();
+
+    const books = await Book.find().sort({ createdAt: -1 }).lean();
+
+    return {
+      success: true,
+      data: serializeData(books)
+    }
+  } catch (error) {
+    console.error("Error connecting to database", error);
+    return {
+      success: false, error: error
+    }
+  }
+}
+
 export const checkBookExists = async (title: string) => {
     try {
         await connectToDatabase()
@@ -64,36 +82,43 @@ export const createBook = async (data: CreateBook) => {
     }
 }
 
-export const saveBookSegments = async (bookId: string, clerkId: string, segments: TextSegment[]) => {
-    try {
-        await connectToDatabase();
+export const saveBookSegments = async (
+  bookId: string,
+  clerkId: string,
+  segments: TextSegment[]
+) => {
+  try {
+    await connectToDatabase();
 
-        console.log("Saving book segments ...");
+    console.log("Saving book segments...");
 
-        const segmentsToInsert = segments.map(({ text, segmentIndex, pageNumber, wordCount }) => ({
-            clerkId, bookId, content: text, segmentIndex, pageNumber, wordCount
-        }));
+    const segmentsToInsert = segments.map(
+      ({ text, segmentIndex, pageNumber, wordCount }) => ({
+        clerkId,
+        bookId,
+        content: text,
+        segmentIndex,
+        pageNumber,
+        wordCount,
+      })
+    );
 
-        await BookSegment.insertMany(segmentsToInsert);
+    await BookSegment.insertMany(segmentsToInsert);
 
-        await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length })
+    await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length });
 
-          console.log("Book segments saved successfully.");
-        
-        return {
-            success: true,
-            data: { segmentsCreated: segments.length }
-        }
-        
-    } catch (error) {
-        console.error("Error saving book segments:", error);
+    console.log("Book segments saved successfully.");
 
-        await BookSegment.deleteMany({ bookId });
-        await Book.findByIdAndDelete(bookId);
-        console.log("Deleted book segments due to failure to save segments.");
-        return {
-            success: false,
-            error: error
-        }
-    }
-}
+    return {
+      success: true,
+      data: { segmentsCreated: segments.length },
+    };
+  } catch (e) {
+    console.error("Error saving book segments", e);
+
+    return {
+      success: false,
+      error: e,
+    };
+  }
+};

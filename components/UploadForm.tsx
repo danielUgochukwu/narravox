@@ -14,7 +14,7 @@ import {
   saveBookSegments,
 } from "@/lib/actions/book.actions";
 import { useRouter } from "next/navigation";
-import { parsePDFFile } from "@/lib/utils";
+import { generateSlug, parsePDFFile } from "@/lib/utils";
 import { upload } from "@vercel/blob/client";
 
 const voices = {
@@ -66,7 +66,7 @@ export default function UploadForm() {
         return;
       }
 
-      const fileTitle = data.title.replace(/\s+/g, "-").toLowerCase();
+      const fileTitle = generateSlug(data.title);
       const pdfFile = data.pdfFile;
 
       const parsedPDF = await parsePDFFile(pdfFile);
@@ -78,7 +78,7 @@ export default function UploadForm() {
         return;
       }
 
-      const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
+      const uploadedPdfBlob = await upload(`${fileTitle}.pdf`, pdfFile, {
         access: "public",
         handleUploadUrl: "/api/upload",
         contentType: "application/pdf",
@@ -124,7 +124,6 @@ export default function UploadForm() {
       if (!book.success) {
         toast.error("Failed to create book. Please try again later.");
         throw new Error("Failed to create book");
-        return;
       }
 
       if (existsCheck.exists && existsCheck.book) {
@@ -135,7 +134,7 @@ export default function UploadForm() {
       }
 
       const segments = await saveBookSegments(
-        book.data.id,
+        book.data._id.toString(),
         userId,
         parsedPDF.content
       );
