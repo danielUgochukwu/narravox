@@ -50,13 +50,16 @@ const FileUploader = <T extends FieldValues>({
   return (
     <Field data-invalid={!!error} className="w-full">
       <FieldLabel className="form-label">{label}</FieldLabel>
-      <div
+      <button
+        type="button"
         className={cn(
-          "upload-dropzone border-2 border-dashed border-[#8B7355]/20",
+          "upload-dropzone border-2 border-dashed border-[`#8B7355`]/20",
           isUploaded && "upload-dropzone-uploaded"
         )}
         onClick={() => !disabled && inputRef.current?.click()}
+        disabled={disabled}
       >
+      </button>
         <input
           type="file"
           accept={acceptTypes.join(",")}
