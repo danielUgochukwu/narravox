@@ -167,6 +167,7 @@ export const useVapi = (book: IBook) => {
 
       const call = await getVapi().start(ASSISTANT_ID, {
         firstMessage,
+        metadata: { userId },
         variableValues: {
           title: book.title,
           author: book.author,

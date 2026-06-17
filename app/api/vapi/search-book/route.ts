@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 
+import { connectToDatabase } from "@/database/mongoose";
+import Book from "@/database/models/book.model";
 import { searchBookSegments } from "@/lib/actions/book.actions";
+
+async function verifyBookOwnership(
+  bookId: string,
+  clerkId: string
+): Promise<boolean> {
+  if (!bookId || !clerkId) return false;
+  try {
+    await connectToDatabase();
+    const book = await Book.findOne({ _id: bookId, clerkId }).lean();
+    return !!book;
+  } catch {
+    return false;
+  }
+}
 
 // Helper function to process book search logic
 async function processBookSearch(bookId: unknown, query: unknown) {
@@ -59,12 +75,15 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    console.log("Vapi search-book request:", JSON.stringify(body, null, 2));
+    if (process.env.NODE_ENV === "development") {
+      console.log("Vapi search-book request:", JSON.stringify(body, null, 2));
+    }
 
     // Support multiple Vapi formats
     const functionCall = body?.message?.functionCall;
     const toolCallList =
       body?.message?.toolCallList || body?.message?.toolCalls;
+    const clerkId = body?.message?.call?.metadata?.userId as string | undefined;
 
     // Handle single functionCall format
     if (functionCall) {
@@ -72,6 +91,10 @@ export async function POST(request: Request) {
       const parsed = parseArgs(parameters);
 
       if (name === "searchBook") {
+        const bookId = String(parsed.bookId ?? "");
+        if (!clerkId || !(await verifyBookOwnership(bookId, clerkId))) {
+          return NextResponse.json({ result: "Unauthorized" });
+        }
         const result = await processBookSearch(parsed.bookId, parsed.query);
         return NextResponse.json(result);
       }
@@ -94,8 +117,13 @@ export async function POST(request: Request) {
       const args = parseArgs(func?.arguments);
 
       if (name === "searchBook") {
-        const searchResult = await processBookSearch(args.bookId, args.query);
-        results.push({ toolCallId: id, ...searchResult });
+        const bookId = String(args.bookId ?? "");
+        if (!clerkId || !(await verifyBookOwnership(bookId, clerkId))) {
+          results.push({ toolCallId: id, result: "Unauthorized" });
+        } else {
+          const searchResult = await processBookSearch(args.bookId, args.query);
+          results.push({ toolCallId: id, ...searchResult });
+        }
       } else {
         results.push({ toolCallId: id, result: `Unknown function: ${name}` });
       }

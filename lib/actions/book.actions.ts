@@ -12,12 +12,20 @@ export const getAllBooks = async (search?: string) => {
   try {
     await connectToDatabase();
 
-    let query = {};
+    const { auth } = await import("@clerk/nextjs/server");
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: true, data: [] };
+    }
+
+    let query: Record<string, unknown> = { clerkId: userId };
 
     if (search) {
       const escapedSearch = escapeRegex(search);
       const regex = new RegExp(escapedSearch, "i");
       query = {
+        clerkId: userId,
         $or: [{ title: { $regex: regex } }, { author: { $regex: regex } }],
       };
     }
@@ -68,9 +76,16 @@ export const createBook = async (data: CreateBook) => {
   try {
     await connectToDatabase();
 
+    const { auth } = await import("@clerk/nextjs/server");
+    const { userId } = await auth();
+
+    if (!userId || userId !== data.clerkId) {
+      return { success: false, error: "Unauthorized" };
+    }
+
     const slug = generateSlug(data.title);
 
-    const existingBook = await Book.findOne({ slug }).lean();
+    const existingBook = await Book.findOne({ slug, clerkId: userId }).lean();
 
     if (existingBook) {
       return {
@@ -83,13 +98,6 @@ export const createBook = async (data: CreateBook) => {
     // Todo: Check subscription limits before creating a book
     const { getUserPlan } = await import("@/lib/subscription.server");
     const { PLAN_LIMITS } = await import("@/lib/subscription-constants");
-
-    const { auth } = await import("@clerk/nextjs/server");
-    const { userId } = await auth();
-
-    if (!userId || userId !== data.clerkId) {
-      return { success: false, error: "Unauthorized" };
-    }
 
     const plan = await getUserPlan();
     const limits = PLAN_LIMITS[plan];
@@ -132,7 +140,14 @@ export const getBookBySlug = async (slug: string) => {
   try {
     await connectToDatabase();
 
-    const book = await Book.findOne({ slug }).lean();
+    const { auth } = await import("@clerk/nextjs/server");
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const book = await Book.findOne({ slug, clerkId: userId }).lean();
 
     if (!book) {
       return { success: false, error: "Book not found" };
