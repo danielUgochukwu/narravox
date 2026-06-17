@@ -7,6 +7,7 @@ import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 import mongoose from "mongoose";
 import { getUserPlan } from "@/lib/subscription.server";
+import { PLAN_LIMITS } from "@/lib/subscription-constants";
 
 export const getAllBooks = async (search?: string) => {
   try {
@@ -96,9 +97,6 @@ export const createBook = async (data: CreateBook) => {
     }
 
     // Todo: Check subscription limits before creating a book
-    const { getUserPlan } = await import("@/lib/subscription.server");
-    const { PLAN_LIMITS } = await import("@/lib/subscription-constants");
-
     const plan = await getUserPlan();
     const limits = PLAN_LIMITS[plan];
 

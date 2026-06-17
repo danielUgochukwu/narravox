@@ -617,7 +617,7 @@
     @apply flex gap-4;
   }
   .voice-selector-option {
-    `@apply` relative flex-1 flex items-center justify-center gap-3 p-4 border border-(--border-subtle) rounded-lg cursor-pointer transition-all;
+    @apply relative flex-1 flex items-center justify-center gap-3 p-4 border border-(--border-subtle) rounded-lg cursor-pointer transition-all;
 
     box-shadow: var(--shadow-soft-sm);
 
