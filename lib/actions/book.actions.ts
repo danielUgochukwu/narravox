@@ -185,9 +185,19 @@ export const saveBookSegments = async (
       })
     );
 
-    await BookSegment.insertMany(segmentsToInsert);
-
-    await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length });
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await BookSegment.insertMany(segmentsToInsert, { session });
+        await Book.findByIdAndUpdate(
+          bookId,
+          { totalSegments: segments.length },
+          { session }
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
 
     console.log("Book segments saved successfully.");
 

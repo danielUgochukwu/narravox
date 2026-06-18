@@ -16,13 +16,30 @@ const VapiControls = ({ book }: { book: IBook }) => {
     currentMessage,
     currentUserMessage,
     duration,
+    limitError,
     start,
     stop,
     clearError,
   } = useVapi(book);
 
+  const formatDuration = (secs: number) =>
+    `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  const statusLabel =
+    status === "idle" ? "Ready" : status[0].toUpperCase() + status.slice(1);
+
   return (
     <>
+      {limitError && (
+        <div className="error-banner">
+          <div className="error-banner-content">
+            <span>{limitError}</span>
+            <button type="button" onClick={clearError}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header card */}
       <div className="vapi-header-card w-full">
         <div className="vapi-cover-wrapper">
@@ -41,7 +58,9 @@ const VapiControls = ({ book }: { book: IBook }) => {
               <button
                 onClick={isActive ? stop : start}
                 disabled={status === "connecting" || status === "starting"}
-                className={`vapi-mic-btn relative z-10 shadow-md w-15 h-15 ${isActive ? 'vapi-mic-btn-active' : 'vapi-mic-btn-inactive'}`}
+                className={`vapi-mic-btn relative z-10 shadow-md w-15 h-15 ${
+                  isActive ? "vapi-mic-btn-active" : "vapi-mic-btn-inactive"
+                }`}
                 type="button"
                 aria-label="Toggle microphone"
               >
@@ -63,7 +82,7 @@ const VapiControls = ({ book }: { book: IBook }) => {
           <div className="flex flex-wrap gap-2">
             <div className="vapi-status-indicator">
               <span className="vapi-status-dot vapi-status-dot-ready" />
-              <span className="vapi-status-text">Ready</span>
+              <span className="vapi-status-text">{statusLabel}</span>
             </div>
             <div className="vapi-status-indicator">
               <span className="vapi-status-text">
@@ -71,7 +90,9 @@ const VapiControls = ({ book }: { book: IBook }) => {
               </span>
             </div>
             <div className="vapi-status-indicator">
-              <span className="vapi-status-text">0:00/15:00</span>
+              <span className="vapi-status-text">
+                {formatDuration(duration)}/15:00
+              </span>
             </div>
           </div>
         </div>
