@@ -1,4 +1,4 @@
-import { MAX_FILE_SIZE } from "@/lib/constants/constants";
+import { MAX_FILE_SIZE } from "@/constants";
 import { auth } from "@clerk/nextjs/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";

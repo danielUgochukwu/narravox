@@ -31,7 +31,7 @@ export interface IBookSegment extends Document {
   bookId: Types.ObjectId;
   content: string;
   segmentIndex: number;
-  pageNumber?: number;
+  pageNumber?: number; 
   wordCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -41,7 +41,7 @@ export interface IVoiceSession extends Document {
   _id: Types.ObjectId;
   clerkId: string;
   bookId: Types.ObjectId;
-  startedAt: Date;
+  startedAt: Date; 
   endedAt?: Date;
   durationSeconds: number;
   billingPeriodStart: Date;
@@ -115,4 +115,25 @@ export interface FileUploadFieldProps<T extends FieldValues> {
   icon: LucideIcon;
   placeholder: string;
   hint: string;
+}
+
+export interface SessionCheckReuslt {
+  allowed: boolean;
+  currentCount: number;
+  limit: number;
+  plan: PlanType;
+  maxDurationMinutes: number;
+  error?: string;
+}
+
+export interface StartSessionResult {
+  success: boolean;
+  sessionId?: string;
+  maxDurationMinutes?: number;
+  error?: string;
+}
+
+export interface EndSessionResult {
+  success: boolean;
+  error?: string;
 }

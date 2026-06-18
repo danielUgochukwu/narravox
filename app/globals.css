@@ -617,12 +617,17 @@
     @apply flex gap-4;
   }
   .voice-selector-option {
-    @apply flex-1 flex items-center justify-center gap-3 p-4 border border-(--border-subtle) rounded-lg cursor-pointer transition-all;
+    @apply relative flex-1 flex items-center justify-center gap-3 p-4 border border-(--border-subtle) rounded-lg cursor-pointer transition-all;
+
     box-shadow: var(--shadow-soft-sm);
 
     &:hover {
       box-shadow: var(--shadow-soft);
       transform: translateY(-2px);
+    }
+
+    &:focus-within {
+      @apply ring-2 ring-[#663820] ring-offset-2 outline-none;
     }
   }
   .voice-selector-option-selected {
