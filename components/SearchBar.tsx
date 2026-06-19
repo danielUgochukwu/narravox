@@ -2,16 +2,20 @@
 
 import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
-
+import { useEffect, useRef, useState } from "react";
 export default function SearchBar() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-
   const [value, setValue] = useState(searchParams.get("q") ?? "");
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
-
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newVal = e.target.value;
     setValue(newVal);
@@ -31,6 +35,7 @@ export default function SearchBar() {
   return (
     <div className="library-search-wrapper">
       <Search className="ml-3 size-4 shrink-0 text-(--text-muted)" />
+
       <input
         type="text"
         placeholder="Search by title or author..."

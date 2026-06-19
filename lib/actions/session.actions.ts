@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import VoiceSession from "@/database/models/voice-session.model";
+import SessionQuota from "@/database/models/session-quota.model";
 import { connectToDatabase } from "@/database/mongoose";
 import { EndSessionResult, StartSessionResult } from "@/types";
 import {
@@ -27,17 +28,30 @@ export const startVoiceSession = async (
     const billingPeriodStart = getCurrentBillingPeriodStart();
 
     if (limits.maxSessionsPerMonth !== Infinity) {
-      const sessionCount = await VoiceSession.countDocuments({
-        clerkId: userId,
-        billingPeriodStart,
-      });
-
-      if (sessionCount >= limits.maxSessionsPerMonth) {
-        return {
-          success: false,
-          error: `You've used all ${limits.maxSessionsPerMonth} voice sessions for this month on the ${plan} plan. Upgrade to continue.`,
-          isBillingError: true,
-        };
+      // Atomically reserve a quota slot. findOneAndUpdate serializes concurrent
+      // writes to the same counter document, preventing TOCTOU bypasses.
+      // When count >= limit, upsert collides with the unique index (code 11000).
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await SessionQuota.findOneAndUpdate(
+            { clerkId: userId, billingPeriodStart, count: { $lt: limits.maxSessionsPerMonth } },
+            { $inc: { count: 1 } },
+            { upsert: true }
+          );
+          break;
+        } catch (err: any) {
+          // Retry once: concurrent first-session inserts can both miss the doc
+          // and race to create it; only the second attempt clarifies the cause.
+          if (err.code === 11000 && attempt === 0) continue;
+          if (err.code === 11000) {
+            return {
+              success: false,
+              error: `You've used all ${limits.maxSessionsPerMonth} voice sessions for this month on the ${plan} plan. Upgrade to continue.`,
+              isBillingError: true,
+            };
+          }
+          throw err;
+        }
       }
     }
 

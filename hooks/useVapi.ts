@@ -65,12 +65,14 @@ function getErrorMessage(error: unknown): string {
     if (typeof e.error === "object" && e.error !== null) {
       const nested = e.error as Record<string, unknown>;
       // errorMsg is the plain-text field; message is sometimes a re-serialised JSON string
-      if (typeof nested.errorMsg === "string") return mapVapiError(nested.errorMsg);
+      if (typeof nested.errorMsg === "string")
+        return mapVapiError(nested.errorMsg);
       if (typeof nested.message === "string") {
         // message may itself be a JSON string — try to unwrap it
         try {
           const parsed = JSON.parse(nested.message) as Record<string, unknown>;
-          if (typeof parsed.errorMsg === "string") return mapVapiError(parsed.errorMsg);
+          if (typeof parsed.errorMsg === "string")
+            return mapVapiError(parsed.errorMsg);
         } catch {
           // not JSON — use as-is
         }
@@ -113,28 +115,27 @@ export const useVapi = (book: IBook) => {
     status === "speaking" ||
     status === "starting";
 
+  const redirectAfterStopRef = useRef(false);
+
   useEffect(() => {
     if (!isActive) return;
     const limitSeconds = maxDurationRef.current * 60;
-    if (duration >= limitSeconds) {
-      getVapi().stop();
-      router.push("/");
+    if (duration >= limitSeconds && !redirectAfterStopRef.current) {
+      redirectAfterStopRef.current = true;
+      void getVapi().stop();
     }
   }, [duration, isActive, maxDurationRef, router]);
 
-  const finalizeSession = useCallback(
-    async () => {
-      const sessionId = sessionIdRef.current;
-      sessionIdRef.current = null;
-      if (!sessionId) return;
-      try {
-        await endVoiceSession(sessionId, durationRef.current);
-      } catch (error) {
-        console.error("Error ending session:", error);
-      }
-    },
-    [durationRef]
-  );
+  const finalizeSession = useCallback(async () => {
+    const sessionId = sessionIdRef.current;
+    sessionIdRef.current = null;
+    if (!sessionId) return;
+    try {
+      await endVoiceSession(sessionId, durationRef.current);
+    } catch (error) {
+      console.error("Error ending session:", error);
+    }
+  }, [durationRef]);
 
   useEffect(() => {
     let vapiInstance: InstanceType<typeof Vapi>;
@@ -152,9 +153,9 @@ export const useVapi = (book: IBook) => {
     };
 
     const handleCallEnd = async () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (redirectAfterStopRef.current) {
+        redirectAfterStopRef.current = false;
+        router.push("/");
       }
       setStatus("idle");
       setCurrentMessage("");
@@ -198,7 +199,7 @@ export const useVapi = (book: IBook) => {
     // Fix: without this handler, Vapi's EventEmitter throws any error event as
     // an unhandled exception — which is the root cause of "Unhandled error (undefined)"
     const handleError = async (error: unknown) => {
-      console.error("Vapi error:", JSON.stringify(error));
+      console.error("Vapi error:", error);
       setLimitError(getErrorMessage(error));
       setStatus("idle");
       if (timerRef.current) {
@@ -249,9 +250,6 @@ export const useVapi = (book: IBook) => {
       }
 
       sessionIdRef.current = result.sessionId || null;
-      if (result.maxDurationMinutes) {
-        setMaxDurationMinutes(result.maxDurationMinutes);
-      }
 
       const firstMessage = `Hey, good to meet you. Quick question, before we dive in: have you actually read ${book.title} yet? Or are we starting fresh?`;
 
@@ -287,7 +285,6 @@ export const useVapi = (book: IBook) => {
     currentMessage,
     currentUserMessage,
     duration,
-    maxDurationMinutes,
     limitError,
     start,
     stop,
